@@ -1,0 +1,25 @@
+Admin , Faculty & Student Login Details :
+
+Admin - 
+          Email - anishgholap7@gmail.com
+          Password - anishgholap2004
+
+Faculty -
+          Nmae - Kane
+          Email - faculty1@gmail.com
+          Password - kanefaculty1
+
+Student - 
+          Name - Jhon
+          Email - student1@gmail.com
+          Password - jhonstudent1
+
+
+For creating new student and faculty follow below steps:
+Open a terminal in VS Code and run:
+cd C:\Users\ANISH\student-management\backend
+node createUser.js
+Choose 1 to create Faculty account
+Choose 2 to create Student account
+After that enter required Email,Account Holder Hame & Password
+Account will be created.

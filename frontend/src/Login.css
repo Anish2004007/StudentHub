@@ -1,0 +1,250 @@
+
+.login-screen {
+  min-height: 100vh;
+  padding: 28px 18px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  background:
+    radial-gradient(circle at top left, #e7e3ff 0, transparent 36%),
+    #f4f6fc;
+  color: #19233b;
+}
+
+.login-theme-toggle {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  padding: 10px 14px;
+  border: 1px solid #e0e4ef;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #19233b;
+  font-weight: 600;
+}
+
+.login-card {
+  width: min(100%, 430px);
+  padding: 34px;
+  border: 1px solid #e5e9f3;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(29, 39, 74, 0.12);
+}
+
+.login-brand-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+  border-radius: 17px;
+  background: linear-gradient(140deg, #6658e8, #9077f5);
+  box-shadow: 0 8px 18px rgba(102, 88, 232, 0.22);
+  font-size: 28px;
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+}
+
+.login-subtitle {
+  margin: 9px 0 25px;
+  color: #78839a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.login-field label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.login-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 45px;
+  padding: 11px 12px;
+  border: 1px solid #dfe4ef;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #19233b;
+  outline: none;
+}
+
+.login-field input:focus {
+  border-color: #8171f1;
+  box-shadow: 0 0 0 3px rgba(102, 88, 232, 0.12);
+}
+
+.login-password-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-password-wrap input {
+  flex: 1;
+}
+
+.show-password-btn {
+  padding: 9px;
+  border: 0;
+  background: transparent;
+  color: #6658e8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.login-submit-btn {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 5px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(120deg, #6557e8, #8170f2);
+  color: #ffffff;
+  font-weight: 750;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.login-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.login-submit-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.login-error {
+  margin-bottom: 18px;
+  padding: 12px;
+  border: 1px solid #ffd3d8;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #9f2635;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.login-security-note {
+  margin: 21px 0 0;
+  color: #78839a;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Login page dark mode */
+.login-screen.dark-mode {
+  background:
+    radial-gradient(circle at top left, #242044 0, transparent 38%),
+    #0b1020;
+  color: #e7ebf5;
+}
+
+.login-screen.dark-mode .login-card {
+  background: #141c2e;
+  border-color: #29344b;
+}
+
+.login-screen.dark-mode .login-subtitle,
+.login-screen.dark-mode .login-security-note {
+  color: #a0abc0;
+}
+
+.login-screen.dark-mode .login-field input {
+  background: #0e1627;
+  border-color: #394760;
+  color: #e7ebf5;
+}
+
+.login-screen.dark-mode .login-theme-toggle {
+  background: #202b41;
+  border-color: #394760;
+  color: #e7ebf5;
+}
+
+.login-screen.dark-mode .login-error {
+  background: #351923;
+  border-color: #6b2d3b;
+  color: #ffc0c7;
+}
+
+@media (max-width: 480px) {
+  .login-screen {
+    padding: 76px 14px 20px;
+  }
+
+  .login-theme-toggle {
+    top: 16px;
+    right: 14px;
+  }
+
+  .login-card {
+    padding: 25px 21px;
+    border-radius: 17px;
+  }
+
+  .login-card h1 {
+    font-size: 22px;
+  }
+}
+
+/* Login role dropdown */
+.login-field select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #1f2937;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  appearance: auto;
+}
+
+.login-field select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.login-field select:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Match the dropdown to dark mode */
+.login-screen.dark-mode .login-field select {
+  background-color: #1f2937;
+  color: #f9fafb;
+  border-color: #4b5563;
+}
+
+.login-screen.dark-mode .login-field select option {
+  background-color: #1f2937;
+  color: #f9fafb;
+}
+
+/* Keep the role label consistent with other login labels */
+.login-field label {
+  display: block;
+  margin-bottom: 8px;
+}
