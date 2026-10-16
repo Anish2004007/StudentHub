@@ -12,8 +12,10 @@ const resultRoutes = require("./routes/resultRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const riskRoutes = require("./routes/riskRoutes");
 const authRoutes = require("./routes/authRoutes");
-
+const timetableRoutes = require("./routes/timetableRoutes");
+const calendarRoutes = require("./routes/calendarRoutes");
 const { authenticateToken } = require("./middleware/authMiddleware");
+const analyticsRoutes = require("./routes/analyticsRoutes");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -45,6 +47,12 @@ app.use("/api/results", authenticateToken, resultRoutes);
 app.use("/api/attendance", authenticateToken, attendanceRoutes);
 
 app.use("/api/risk-alerts", authenticateToken, riskRoutes);
+
+app.use("/api/timetable", authenticateToken, timetableRoutes);
+
+app.use("/api/calendar", authenticateToken, calendarRoutes);
+
+app.use("/api/analytics", authenticateToken, analyticsRoutes);
 
 // Protected attendance route test
 app.get("/api/attendance-test", authenticateToken, (req, res) => {

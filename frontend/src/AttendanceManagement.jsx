@@ -14,21 +14,73 @@ const getLocalDate = () => {
   return `${year}-${month}-${day}`;
 };
 
+const formatDate = (dateString) => {
+  if (!dateString) return "—";
+
+  const [year, month, day] = dateString.split("-").map(Number);
+
+  if (!year || !month || !day) return dateString;
+
+  return new Date(year, month - 1, day).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const getPeriodRange = (dateString, period) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const selectedDate = new Date(year, month - 1, day);
+
+  let start;
+  let end;
+
+  if (period === "daily") {
+    start = new Date(year, month - 1, day);
+    end = new Date(year, month - 1, day);
+  } else if (period === "weekly") {
+    start = new Date(selectedDate);
+    const dayOfWeek = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - dayOfWeek);
+
+    end = new Date(start);
+    end.setDate(end.getDate() + 6);
+  } else {
+    start = new Date(year, month - 1, 1);
+    end = new Date(year, month, 0);
+  }
+
+  const toISO = (value) => {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  return {
+    start: toISO(start),
+    end: toISO(end),
+  };
+};
+
 function AttendanceManagement() {
   const [students, setStudents] = useState([]);
   const [records, setRecords] = useState([]);
   const [date, setDate] = useState(getLocalDate());
+  const [period, setPeriod] = useState("monthly");
+
   const [search, setSearch] = useState("");
   const [courseFilter, setCourseFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+
   const [attendance, setAttendance] = useState({});
   const [remarks, setRemarks] = useState({});
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  // Read the logged-in user's role.
   const getStoredUser = () => {
     try {
       return JSON.parse(
@@ -52,21 +104,22 @@ function AttendanceManagement() {
     setError("");
 
     try {
-      const [studentResponse, attendanceResponse] =
-        await Promise.all([
-          API.get("/students"),
-          API.get("/api/attendance", {
-            params: { date },
-          }),
-        ]);
+      const attendanceParams = isStudent ? {} : { date };
+
+      const [studentResponse, attendanceResponse] = await Promise.all([
+        API.get("/students"),
+        API.get("/api/attendance", {
+          params: attendanceParams,
+        }),
+      ]);
 
       const studentData = Array.isArray(studentResponse.data)
         ? studentResponse.data
-        : studentResponse.data.students || [];
+        : studentResponse.data?.students || [];
 
       const recordData = Array.isArray(attendanceResponse.data)
         ? attendanceResponse.data
-        : attendanceResponse.data.records || [];
+        : attendanceResponse.data?.records || [];
 
       const statusMap = {};
       const remarksMap = {};
@@ -96,20 +149,39 @@ function AttendanceManagement() {
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, isStudent]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   const courses = useMemo(
-    () => [
-      ...new Set(
-        students.map((student) => student.course).filter(Boolean)
-      ),
-    ].sort(),
+    () =>
+      [
+        ...new Set(
+          students.map((student) => student.course).filter(Boolean)
+        ),
+      ].sort(),
     [students]
   );
+
+  const periodRange = useMemo(
+    () => getPeriodRange(date, period),
+    [date, period]
+  );
+
+  // Student records for the selected daily, weekly, or monthly period.
+  const periodRecords = useMemo(() => {
+    if (!isStudent) return records;
+
+    return records
+      .filter(
+        (record) =>
+          record.date >= periodRange.start &&
+          record.date <= periodRange.end
+      )
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [records, isStudent, periodRange]);
 
   const recordByStudent = useMemo(() => {
     const map = new Map();
@@ -141,56 +213,46 @@ function AttendanceManagement() {
         (student.course || "").toLowerCase().includes(term);
 
       const matchesCourse =
-        courseFilter === "All" ||
-        student.course === courseFilter;
+        courseFilter === "All" || student.course === courseFilter;
 
-      const studentStatus =
-        attendance[id] ||
-        recordByStudent.get(id)?.status ||
-        "Unmarked";
+      const studentStatus = attendance[id] || "Unmarked";
 
       const matchesStatus =
-        statusFilter === "All" ||
-        studentStatus === statusFilter;
+        statusFilter === "All" || studentStatus === statusFilter;
 
       return matchesSearch && matchesCourse && matchesStatus;
     });
-  }, [
-    students,
-    search,
-    courseFilter,
-    statusFilter,
-    attendance,
-    recordByStudent,
-  ]);
+  }, [students, search, courseFilter, statusFilter, attendance]);
 
-  const savedCount = records.length;
+  // Student cards use the selected period.
+  // Admin/Faculty cards continue to describe the selected date.
+  const summaryRecords = isStudent ? periodRecords : records;
 
-  const presentCount = records.filter(
+  const savedCount = summaryRecords.length;
+
+  const presentCount = summaryRecords.filter(
     (record) => record.status === "Present"
   ).length;
 
-  const absentCount = records.filter(
+  const absentCount = summaryRecords.filter(
     (record) => record.status === "Absent"
   ).length;
 
-  const lateCount = records.filter(
+  const lateCount = summaryRecords.filter(
     (record) => record.status === "Late"
   ).length;
 
-  const excusedCount = records.filter(
+  const excusedCount = summaryRecords.filter(
     (record) => record.status === "Excused"
   ).length;
 
-  const unmarkedCount = Math.max(
-    0,
-    students.length - savedCount
-  );
+  const unmarkedCount = Math.max(0, students.length - records.length);
+
+  // Excused records are excluded from the attendance-rate denominator.
+  const eligibleRecords = presentCount + absentCount + lateCount;
 
   const attendanceRate =
-    students.length > 0
-      ? ((presentCount + lateCount) / students.length) * 100
-      : 0;
+    eligibleRecords > 0 ? (presentCount / eligibleRecords) * 100 : 0;
 
   const handleStatusChange = (studentId, status) => {
     if (!canManageAttendance) return;
@@ -234,9 +296,7 @@ function AttendanceManagement() {
       }));
 
     if (recordsToSave.length === 0) {
-      setError(
-        "Mark at least one student's attendance before saving."
-      );
+      setError("Mark at least one student's attendance before saving.");
       return;
     }
 
@@ -268,8 +328,7 @@ function AttendanceManagement() {
       await loadData();
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          "Unable to save attendance."
+        err.response?.data?.message || "Unable to save attendance."
       );
     } finally {
       setSaving(false);
@@ -304,6 +363,34 @@ function AttendanceManagement() {
     }
   };
 
+  const movePeriod = (direction) => {
+    const [year, month, day] = date.split("-").map(Number);
+    const nextDate = new Date(year, month - 1, day);
+
+    if (period === "daily") {
+      nextDate.setDate(nextDate.getDate() + direction);
+    } else if (period === "weekly") {
+      nextDate.setDate(nextDate.getDate() + 7 * direction);
+    } else {
+      nextDate.setMonth(nextDate.getMonth() + direction);
+    }
+
+    const y = nextDate.getFullYear();
+    const m = String(nextDate.getMonth() + 1).padStart(2, "0");
+    const d = String(nextDate.getDate()).padStart(2, "0");
+
+    setDate(`${y}-${m}-${d}`);
+    setMessage("");
+    setError("");
+  };
+
+  const periodLabel =
+    period === "daily"
+      ? "Daily Attendance"
+      : period === "weekly"
+        ? "Weekly Attendance"
+        : "Monthly Attendance";
+
   return (
     <div className="attendance-page">
       <div className="page-heading">
@@ -313,7 +400,7 @@ function AttendanceManagement() {
           </h2>
           <p>
             {isStudent
-              ? "View your attendance records and daily status."
+              ? "View your daily, weekly, and monthly attendance records."
               : "Record daily attendance and review student attendance status."}
           </p>
         </div>
@@ -369,9 +456,7 @@ function AttendanceManagement() {
           <span className="attendance-stat-icon">📈</span>
           <div>
             <p>Attendance Rate</p>
-            <h3>
-              {attendanceRate.toFixed(1)}%
-            </h3>
+            <h3>{attendanceRate.toFixed(1)}%</h3>
           </div>
         </div>
       </section>
@@ -380,22 +465,35 @@ function AttendanceManagement() {
         <div className="panel-header">
           <div>
             <h2>
-              {isStudent
-                ? "Daily Attendance"
-                : "Mark Daily Attendance"}
+              {isStudent ? periodLabel : "Mark Daily Attendance"}
             </h2>
             <p>
               {isStudent
-                ? "Select a date to view your attendance."
+                ? `${formatDate(periodRange.start)} – ${formatDate(periodRange.end)}`
                 : "Choose a date, select each student's status, and save your changes."}
             </p>
           </div>
         </div>
 
         <div className="attendance-controls">
+          {isStudent && (
+            <div className="attendance-field">
+              <label htmlFor="attendancePeriod">Attendance Period</label>
+              <select
+                id="attendancePeriod"
+                value={period}
+                onChange={(event) => setPeriod(event.target.value)}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+          )}
+
           <div className="attendance-field">
             <label htmlFor="attendanceDate">
-              Attendance Date
+              {isStudent ? "Reference Date" : "Attendance Date"}
             </label>
             <input
               id="attendanceDate"
@@ -409,20 +507,40 @@ function AttendanceManagement() {
             />
           </div>
 
+          {isStudent && (
+            <div className="attendance-field attendance-period-navigation">
+              <label>Change Period</label>
+              <div className="attendance-period-buttons">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => movePeriod(-1)}
+                  aria-label="Previous period"
+                >
+                  ← Previous
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => movePeriod(1)}
+                  aria-label="Next period"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+
           {!isStudent && (
             <>
               <div className="attendance-field">
-                <label htmlFor="attendanceSearch">
-                  Search Students
-                </label>
+                <label htmlFor="attendanceSearch">Search Students</label>
                 <input
                   id="attendanceSearch"
                   type="search"
                   placeholder="Name, email or course..."
                   value={search}
-                  onChange={(event) =>
-                    setSearch(event.target.value)
-                  }
+                  onChange={(event) => setSearch(event.target.value)}
                 />
               </div>
 
@@ -431,9 +549,7 @@ function AttendanceManagement() {
                 <select
                   id="attendanceCourse"
                   value={courseFilter}
-                  onChange={(event) =>
-                    setCourseFilter(event.target.value)
-                  }
+                  onChange={(event) => setCourseFilter(event.target.value)}
                 >
                   <option value="All">All Courses</option>
                   {courses.map((course) => (
@@ -445,15 +561,11 @@ function AttendanceManagement() {
               </div>
 
               <div className="attendance-field">
-                <label htmlFor="attendanceStatusFilter">
-                  Status
-                </label>
+                <label htmlFor="attendanceStatusFilter">Status</label>
                 <select
                   id="attendanceStatusFilter"
                   value={statusFilter}
-                  onChange={(event) =>
-                    setStatusFilter(event.target.value)
-                  }
+                  onChange={(event) => setStatusFilter(event.target.value)}
                 >
                   <option value="All">All Statuses</option>
                   {STATUSES.map((status) => (
@@ -489,80 +601,104 @@ function AttendanceManagement() {
           <div className="empty-state">
             <p>Loading attendance...</p>
           </div>
+        ) : isStudent ? (
+          students.length === 0 ? (
+            <div className="empty-state">
+              <h3>Student profile not linked</h3>
+              <p>
+                Your account needs to be linked to your student record.
+                Contact your administrator.
+              </p>
+            </div>
+          ) : periodRecords.length === 0 ? (
+            <div className="empty-state">
+              <h3>No attendance records for this period</h3>
+              <p>
+                Try another date or period. Only saved attendance records
+                are displayed.
+              </p>
+            </div>
+          ) : (
+            <div className="table-container attendance-table-container">
+              <table className="student-table attendance-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periodRecords.map((record) => (
+                    <tr key={record._id}>
+                      <td>{formatDate(record.date)}</td>
+                      <td>
+                        <span
+                          className={`attendance-status-select status-${(
+                            record.status || ""
+                          ).toLowerCase()}`}
+                        >
+                          {record.status || "Not marked"}
+                        </span>
+                      </td>
+                      <td>{record.remarks || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         ) : students.length === 0 ? (
           <div className="empty-state">
-            <h3>
-              {isStudent
-                ? "Student profile not linked"
-                : "No students available"}
-            </h3>
-            <p>
-              {isStudent
-                ? "Your account needs to be linked to your student record."
-                : "Add students in Student Management before marking attendance."}
-            </p>
+            <h3>No students available</h3>
+            <p>Add students in Student Management before marking attendance.</p>
           </div>
         ) : filteredStudents.length === 0 ? (
           <div className="empty-state">
             <h3>No matching students</h3>
-            <p>
-              {isStudent
-                ? "No attendance records match the selected date."
-                : "Try changing your search, course, or status filter."}
-            </p>
+            <p>Try changing your search, course, or status filter.</p>
           </div>
         ) : (
           <div className="table-container attendance-table-container">
             <table className="student-table attendance-table">
               <thead>
                 <tr>
-                  {!isStudent && <th>Student</th>}
-                  {!isStudent && <th>Course</th>}
-                  {isStudent && <th>Date</th>}
+                  <th>Student</th>
+                  <th>Course</th>
                   <th>Status</th>
                   <th>Remarks</th>
                   {isAdmin && <th>Action</th>}
                 </tr>
               </thead>
-
               <tbody>
                 {filteredStudents.map((student) => {
                   const id = String(student._id);
                   const savedRecord = recordByStudent.get(id);
-                  const currentStatus =
-                    attendance[id] ||
-                    savedRecord?.status ||
-                    "";
+                  const currentStatus = attendance[id] || "";
 
                   return (
                     <tr key={id}>
-                      {!isStudent && (
-                        <td>
-                          <div className="student-name">
-                            <div className="student-avatar">
-                              {(student.name || "?")
-                                .charAt(0)
-                                .toUpperCase()}
-                            </div>
-                            <div>
-                              <strong>{student.name}</strong>
-                              <div className="attendance-email">
-                                {student.email}
-                              </div>
+                      <td>
+                        <div className="student-name">
+                          <div className="student-avatar">
+                            {(student.name || "?")
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                          <div>
+                            <strong>{student.name}</strong>
+                            <div className="attendance-email">
+                              {student.email}
                             </div>
                           </div>
-                        </td>
-                      )}
+                        </div>
+                      </td>
 
-                      {!isStudent && (
-                        <td>
-                          <span className="course-badge">
-                            {student.course || "—"}
-                          </span>
-                        </td>
-                      )}
-
-                      {isStudent && <td>{date}</td>}
+                      <td>
+                        <span className="course-badge">
+                          {student.course || "—"}
+                        </span>
+                      </td>
 
                       <td>
                         {canManageAttendance ? (
@@ -575,10 +711,7 @@ function AttendanceManagement() {
                             }`}
                             value={currentStatus}
                             onChange={(event) =>
-                              handleStatusChange(
-                                id,
-                                event.target.value
-                              )
+                              handleStatusChange(id, event.target.value)
                             }
                           >
                             <option value="">Select status</option>
@@ -589,13 +722,7 @@ function AttendanceManagement() {
                             ))}
                           </select>
                         ) : (
-                          <span
-                            className={
-                              currentStatus
-                                ? `attendance-status-select status-${currentStatus.toLowerCase()}`
-                                : "attendance-unsaved"
-                            }
-                          >
+                          <span className="attendance-unsaved">
                             {currentStatus || "Not marked"}
                           </span>
                         )}
@@ -610,10 +737,7 @@ function AttendanceManagement() {
                             placeholder="Optional remarks"
                             value={remarks[id] || ""}
                             onChange={(event) =>
-                              handleRemarksChange(
-                                id,
-                                event.target.value
-                              )
+                              handleRemarksChange(id, event.target.value)
                             }
                           />
                         ) : (
@@ -627,9 +751,7 @@ function AttendanceManagement() {
                             <button
                               type="button"
                               className="delete-btn"
-                              onClick={() =>
-                                handleDelete(savedRecord)
-                              }
+                              onClick={() => handleDelete(savedRecord)}
                             >
                               Delete
                             </button>
@@ -651,10 +773,9 @@ function AttendanceManagement() {
         {canManageAttendance && (
           <div className="attendance-footer">
             <p>
-              Only students with a selected status will be saved.
-              Existing records for the selected date will be updated.
+              Only students with a selected status will be saved. Existing
+              records for the selected date will be updated.
             </p>
-
             <button
               type="button"
               className="primary-btn"

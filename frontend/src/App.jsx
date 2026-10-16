@@ -9,12 +9,15 @@ import ResultManagement from "./ResultManagement";
 import AttendanceManagement from "./AttendanceManagement";
 import StudentProfile from "./StudentProfile";
 import RiskAlerts from "./RiskAlerts";
+import LandingPage from "./LandingPage";
+import TimetableCalendar from "./TimetableCalendar";
+import AnalyticsDashboard from "./AnalyticsDashboard";
 
 function App() {
   // Authentication state
   const [currentUser, setCurrentUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
-
+  const [showLogin, setShowLogin] = useState(false);
   // Student management state
   const [students, setStudents] = useState([]);
   const [formData, setFormData] = useState({
@@ -143,6 +146,7 @@ function App() {
     sessionStorage.removeItem("studenthub_user");
 
     setCurrentUser(null);
+    setShowLogin(false);
     setStudents([]);
     setActiveTab("students");
     setMessage("");
@@ -385,10 +389,12 @@ function App() {
   }
 
   // Login screen
-  if (!currentUser) {
+  
+if (!currentUser) {
+  if (!showLogin) {
     return (
-      <Login
-        onLogin={handleLogin}
+      <LandingPage
+        onLogin={() => setShowLogin(true)}
         darkMode={darkMode}
         onToggleDarkMode={() =>
           setDarkMode((previous) => !previous)
@@ -396,6 +402,18 @@ function App() {
       />
     );
   }
+
+  return (
+    <Login
+      onLogin={handleLogin}
+      darkMode={darkMode}
+      onToggleDarkMode={() =>
+        setDarkMode((previous) => !previous)
+      }
+    />
+  );
+}
+
 
   return (
     <div className={`app ${darkMode ? "dark-mode" : ""}`}>
@@ -504,6 +522,28 @@ function App() {
             >
               <span className="nav-icon">🚨</span>
               <span>Risk Alerts</span>
+            </button>
+
+            <button
+              type="button"
+              className={`nav-item ${
+                activeTab === "timetable-calendar" ? "active" : ""
+              }`}
+              onClick={() => handleTabChange("timetable-calendar")}
+            >
+              <span className="nav-icon">🗓️</span>
+              <span>Timetable & Calendar</span>
+            </button>
+
+            <button
+              type="button"
+              className={`nav-item ${
+                activeTab === "analytics" ? "active" : ""
+              }`}
+              onClick={() => handleTabChange("analytics")}
+            >
+              <span className="nav-icon">📈</span>
+              <span>Academic Analytics</span>
             </button>
 
             <div className="sidebar-note">
@@ -902,6 +942,18 @@ function App() {
               <StudentProfile
                 students={students}
                 onStudentUpdated={fetchStudents}
+              />
+            )}
+            {activeTab === "timetable-calendar" && (
+              <TimetableCalendar
+                currentUser={currentUser}
+                darkMode={darkMode}
+              />
+            )}
+            {activeTab === "analytics" && (
+              <AnalyticsDashboard
+                currentUser={currentUser}
+                darkMode={darkMode}
               />
             )}
           </section>
